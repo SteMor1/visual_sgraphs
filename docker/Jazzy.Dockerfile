@@ -65,18 +65,18 @@ RUN groupadd --gid $USER_GID $USERNAME \
 
 # --- Python environment setup ---
 RUN pip3 install networkx==3.1
-RUN pip3 install --extra-index-url https://download.pytorch.org/whl/cu128 \
-    torch==2.7.0+cu128 \
-    torchvision==0.22.0+cu128
+RUN pip3 install --extra-index-url https://download.pytorch.org/whl/cu129\
+    torch==2.8.0+cu129\
+    torchvision==0.23.0+cu129
 RUN apt remove --purge python3-typing-extensions -y
 RUN pip3 install typing-extensions==4.11.0
-
+RUN python3 -c "import torch; assert '2.8.0' in torch.__version__, torch.__version__"
 # --- CLIP and Detectron2 setup ---
-ARG TORCH_CUDA_ARCH_LIST="7.5;7.0+PTX"
+ARG TORCH_CUDA_ARCH_LIST="7.5;7.0+PTX;8.0;8.6;8.9;10.0+PTX"
 ENV FORCE_CUDA="1"
 RUN pip3 install 'git+https://github.com/facebookresearch/detectron2.git'
 RUN pip3 install 'git+https://github.com/openai/CLIP.git'
-
+RUN python3 -c "import torch; assert '2.8.0' in torch.__version__, torch.__version__"
 
 # --- SSH keys ---
 # Define the SSH keys as build arguments for latter mounting
@@ -134,8 +134,8 @@ RUN --mount=type=ssh git clone https://github.com/IntelRealSense/realsense-ros.g
 
 # Install the vS-Graphs dependencies
 WORKDIR /home/$USERNAME/workspace/src/visual_sgraphs/docker
-RUN pip3 install --break-system-packages --ignore-installed -r requirements.txt
-
+RUN pip3 install --break-system-packages  -r requirements.txt
+RUN python3 -c "import torch; assert '2.8.0' in torch.__version__, torch.__version__"
 # [Hint] Temp. fix for installing ROS2 Humble repositories (GNN-based room detection) in Jazzy
 # (Read more: https://github.com/ros2/ros2/issues/1702)
 # RUN pip3 install --break-system-packages setuptools==79.0.1
