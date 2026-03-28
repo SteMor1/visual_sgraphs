@@ -65,9 +65,9 @@ RUN groupadd --gid $USER_GID $USERNAME \
 
 # --- Python environment setup ---
 RUN pip3 install networkx==3.1
-RUN pip3 install --extra-index-url https://download.pytorch.org/whl/cu121 \
-    torch \
-    torchvision
+RUN pip3 install --extra-index-url https://download.pytorch.org/whl/cu128 \
+    torch==2.7.0+cu128 \
+    torchvision==0.22.0+cu128
 RUN apt remove --purge python3-typing-extensions -y
 RUN pip3 install typing-extensions==4.11.0
 
@@ -120,7 +120,10 @@ WORKDIR /home/$USERNAME/workspace/src
 RUN --mount=type=ssh git clone git@github.com:snt-arg/visual_sgraphs.git
 RUN --mount=type=ssh git clone git@github.com:snt-arg/situational_graphs_msgs.git
 RUN --mount=type=ssh git clone -b ros2-jazzy git@github.com:snt-arg/scene_segment_ros.git
-RUN --mount=type=ssh git clone -b ros2-master git@github.com:IntelRealSense/realsense-ros.git
+RUN --mount=type=ssh git clone https://github.com/IntelRealSense/realsense-ros.git && \
+    cd realsense-ros && \
+    git checkout 4.56.4
+
 # RUN --mount=type=ssh git clone -b humble-devel git@github.com:pal-robotics/aruco_ros.git
 
 # Repositories for GNN-based room detection and reasoning
@@ -161,7 +164,23 @@ RUN apt-get update && apt-get install -y \
 # Build the workspace
 WORKDIR /home/$USERNAME/workspace/
 RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && rosdep install --from-paths src --ignore-src -r -y"
-RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release"
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-key FB0B24895113F120 && \
+    apt-key export FB0B24895113F120 | gpg --dearmor > /etc/apt/keyrings/librealsense.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/librealsense.gpg] https://librealsense.intel.com/Debian/apt-repo noble main" \
+        > /etc/apt/sources.list.d/librealsense.list && \
+    apt-get update && \
+    apt-get install -y \
+    librealsense2 \
+    librealsense2-dev \
+    librealsense2-utils
+RUN MAKEFLAGS="-j2" /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && colcon build \
+    --symlink-install \
+    --executor sequential \
+    --parallel-workers 1 \
+    --cmake-args \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_PREFIX_PATH='/usr/local;/opt/ros/jazzy' \
+    --packages-skip realsense2_ros_mqtt_bridge"
 
 # --- Miscalleanous ---
 RUN ldconfig
