@@ -117,7 +117,8 @@ RUN make install
 WORKDIR /home/$USERNAME/workspace/src
 
 # Mount the SSH keys and clone the vS-Graphs repositories
-RUN --mount=type=ssh git clone git@github.com:snt-arg/visual_sgraphs.git
+#TODO change to the snt-repo after testing the fix
+RUN --mount=type=ssh git clone -b test-ste git@github.com:SteMor1/visual_sgraphs.git 
 RUN --mount=type=ssh git clone git@github.com:snt-arg/situational_graphs_msgs.git
 RUN --mount=type=ssh git clone -b ros2-jazzy git@github.com:snt-arg/scene_segment_ros.git
 RUN --mount=type=ssh git clone https://github.com/IntelRealSense/realsense-ros.git && \
@@ -134,8 +135,10 @@ RUN --mount=type=ssh git clone https://github.com/IntelRealSense/realsense-ros.g
 
 # Install the vS-Graphs dependencies
 WORKDIR /home/$USERNAME/workspace/src/visual_sgraphs/docker
+RUN python -v
 RUN pip3 install --break-system-packages  -r requirements.txt
 RUN python3 -c "import torch; assert '2.8.0' in torch.__version__, torch.__version__"
+RUN python3 -c "import idna; print('idna OK:', idna.__version__)"
 # [Hint] Temp. fix for installing ROS2 Humble repositories (GNN-based room detection) in Jazzy
 # (Read more: https://github.com/ros2/ros2/issues/1702)
 # RUN pip3 install --break-system-packages setuptools==79.0.1
@@ -189,8 +192,12 @@ RUN ldconfig
 # Remove the apt list files
 RUN rm -rf /var/lib/apt/lists/*
 
-# Remove packages no longer needed
-RUN apt-get clean && apt-get autoremove -y
+# Remove packages no longer needed (use mark to avoid removing some packages that are usefull)
+RUN apt-mark manual \
+    python3-idna \
+    python3-certifi \
+    python3-requests && \
+    apt-get clean && apt-get autoremove -y 
 
 # Remove the ssh keys
 RUN rm -rf /root/.ssh/
