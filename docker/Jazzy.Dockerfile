@@ -233,7 +233,21 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y \
 RUN echo "alias mprocs='mprocs -c /home/$USERNAME/workspace/src/visual_sgraphs/config/mprocs.yml'" >> ~/.bashrc && \
     echo "alias rel_vox='python /home/$USERNAME/workspace/vsgraphs_tools/relay_jazzy.py --mode voxblox_client'" >> ~/.bashrc && \
     echo "alias rel_pcl='python /home/$USERNAME/workspace/vsgraphs_tools/relay_jazzy.py --mode pc_server'" >> ~/.bashrc
-
+USER root
+RUN apt-get update && apt-get install -y wget gnupg lsb-release && \
+    \
+    # Gazebo repo
+    wget https://packages.osrfoundation.org/gazebo.gpg \
+      -O /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] \
+      http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" \
+      > /etc/apt/sources.list.d/gazebo-stable.list && \
+    \
+    apt-get update && \
+    apt-get install -y \
+        ros-jazzy-ros-gz  \
+        libgz-transport13 && \
+    rm -rf /var/lib/apt/lists/*
 ENTRYPOINT ["/entrypoint.sh"]
 USER $USERNAME
 CMD ["/bin/bash"]
