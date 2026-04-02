@@ -1,6 +1,0 @@
-services:
-  vsgraphs_ros2:
-    image: vsgraphs_ros2_jetson
-    build:
-      context: .
-      dockerfile: Jazzy.Jetson.Dockerfile
