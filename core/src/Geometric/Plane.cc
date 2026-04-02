@@ -24,7 +24,7 @@ namespace ORB_SLAM3
     {
         mbBad = false;
         centroid.setZero();
-        planeCloud = std::make_shared<pcl::PointCloud<pcl::PointXYZRGBA>>();
+        planeCloud = boost::make_shared<pcl::PointCloud<pcl::PointXYZRGBA>>();
         octree = boost::make_shared<pcl::octree::OctreePointCloudSearch<pcl::PointXYZRGBA>>(SystemParams::GetParams()->refine_map_points.octree.resolution);
     }
     Plane::~Plane() {}
