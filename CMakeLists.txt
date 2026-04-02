@@ -52,6 +52,7 @@ find_package(rviz_visual_tools REQUIRED)
 find_package(rosidl_default_runtime REQUIRED)
 find_package(situational_graphs_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(tf2_eigen REQUIRED)
 # find_package(aruco_ros REQUIRED)
 # find_package(aruco_msgs REQUIRED)
 
