@@ -231,6 +231,7 @@ set(COMMON_DEPENDENCIES
   segmenter_ros
   message_filters
   situational_graphs_msgs
+  image_transport
 )
 
 # ROS2 nodes
