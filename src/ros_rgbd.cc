@@ -114,7 +114,7 @@ int main(int argc, char **argv)
     using sensor_msgs::msg::PointCloud2;
 
     auto subImgRGB = std::make_shared<Subscriber<Image>>(node.get(), "/camera/rgb/image_raw");
-    auto subPointcloud = std::make_shared<Subscriber<PointCloud2>>(node.get(), "/camera/depth/points");
+    auto subPointcloud = std::make_shared<Subscriber<PointCloud2>>(node.get(), "/camera/depth/points",rmw_qos_profile_sensor_data);
     auto subImgDepth = std::make_shared<Subscriber<Image>>(node.get(), "/camera/depth_registered/image_raw");
 
     typedef ApproximateTime<Image, Image, PointCloud2> syncPolicy;
