@@ -33,7 +33,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/time.hpp>
 #include <opencv2/opencv.hpp>
-#include <cv_bridge/cv_bridge.hpp>
+#include <cv_bridge/cv_bridge.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/core/eigen.hpp>
 // #include <tf/transform_broadcaster.hpp>
