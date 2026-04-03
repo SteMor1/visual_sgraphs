@@ -66,7 +66,7 @@
 #include <pcl_ros/transforms.hpp> // From your pcl_ros/ folder
 // #include <pcl_ros/point_cloud.hpp>    // From your pcl_ros/ folder (if needed)
 #include <pcl_conversions/pcl_conversions.h>
-#include <pcl_ros/pcl_node.hpp> // From your pcl_ros/ folder (if needed)
+#include <pcl_ros/pcl_node.h> // From your pcl_ros/ folder (if needed)
 
 // #include <sensor_msgs/PointCloud2.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
