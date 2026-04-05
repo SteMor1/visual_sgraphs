@@ -1,6 +1,6 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.actions import DeclareLaunchArgument
 from launch_ros.descriptions import ComposableNode
 from launch_ros.actions import ComposableNodeContainer
@@ -20,6 +20,11 @@ def generate_launch_description():
                 default_value="yoso",
                 description="The method to segment the semantic scene (if off, the baseline)",
                 choices=["yoso", "pfcn", "off"],
+            ),
+            DeclareLaunchArgument(
+                "use_isaac_ros",
+                default_value="false",
+                description="Use isaac_ros_depth_image_proc for GPU acceleration (Jetson only)",
             ),
             # Topics
             DeclareLaunchArgument("camera_frame", default_value="camera"),
@@ -94,7 +99,7 @@ def generate_launch_description():
             # Static Transforms
             Node(
                 package="tf2_ros",
-                name="map_to_map_elevated", # For Voxblox Skeleton
+                name="map_to_map_elevated",
                 executable="static_transform_publisher",
                 arguments=["0", "0", "0", "0", "0", "0", "map", "map_elevated"],
             ),
@@ -115,15 +120,8 @@ def generate_launch_description():
                 executable="static_transform_publisher",
                 name="camera_to_camera_optical",
                 arguments=[
-                    "0",
-                    "0",
-                    "0",
-                    "0",
-                    "0",
-                    "0",
-                    "camera",
-                    "d400_color",
-                    # RealSense: camera_color_optical_frame, OpenLoris: d400_color
+                    "0", "0", "0", "0", "0", "0",
+                    "camera", "d400_color",
                 ],
             ),
             # RViz
@@ -141,8 +139,9 @@ def generate_launch_description():
                 ],
                 output="screen",
             ),
-            # Nodelete
+            # Standard depth_image_proc (CPU)
             ComposableNodeContainer(
+                condition=UnlessCondition(LaunchConfiguration("use_isaac_ros")),
                 name="depth_image_proc_container",
                 package="rclcpp_components",
                 namespace="",
@@ -153,24 +152,36 @@ def generate_launch_description():
                         plugin="depth_image_proc::PointCloudXyzrgbNode",
                         name="point_cloud_xyzrgb_node",
                         remappings=[
-                            (
-                                "rgb/camera_info",
-                                LaunchConfiguration("rgb_camera_info_topic"),
-                            ),
-                            (
-                                "rgb/image_rect_color",
-                                LaunchConfiguration("rgb_image_topic"),
-                            ),
-                            (
-                                "depth_registered/image_rect",
-                                LaunchConfiguration("depth_image_topic"),
-                            ),
+                            ("rgb/camera_info", LaunchConfiguration("rgb_camera_info_topic")),
+                            ("rgb/image_rect_color", LaunchConfiguration("rgb_image_topic")),
+                            ("depth_registered/image_rect", LaunchConfiguration("depth_image_topic")),
                             ("points", "/camera/depth/points"),
                         ],
                     ),
                 ],
             ),
-            # Semantic Scene Segmenter Node (based on semantic_scene_segmenter argument)
+            # Isaac ROS depth_image_proc (GPU - Jetson only)
+            ComposableNodeContainer(
+                condition=IfCondition(LaunchConfiguration("use_isaac_ros")),
+                name="depth_image_proc_container",
+                package="rclcpp_components",
+                namespace="",
+                executable="component_container",
+                composable_node_descriptions=[
+                    ComposableNode(
+                        package="isaac_ros_depth_image_proc",
+                        plugin="nvidia::isaac_ros::depth_image_proc::PointCloudXyzrgbNode",
+                        name="point_cloud_xyzrgb_node",
+                        remappings=[
+                            ("rgb/camera_info", LaunchConfiguration("rgb_camera_info_topic")),
+                            ("rgb/image_rect_color", LaunchConfiguration("rgb_image_topic")),
+                            ("depth_registered/image_rect", LaunchConfiguration("depth_image_topic")),
+                            ("points", "/camera/depth/points"),
+                        ],
+                    ),
+                ],
+            ),
+            # Semantic Scene Segmenter Node
             Node(
                 condition=IfCondition(
                     EqualsSubstitution(
@@ -215,25 +226,5 @@ def generate_launch_description():
                     ],
                 ],
             ),
-            # Structural Element Detectors
-            # Node(
-            #     name="situational_graphs_reasoning",
-            #     package="situational_graphs_reasoning",
-            #     executable="situational_graphs_reasoning",
-            #     output="screen",
-            #     # parameters=[
-            #     #     os.path.join(
-            #     #         get_package_share_directory("situational_graphs_reasoning"),
-            #     #         "config",
-            #     #         "params.yaml",
-            #     #     )
-            #     # ],
-            #     # remappings=[
-            #     #     (
-            #     #         "situational_graphs_reasoning/graphs",
-            #     #         "/s_graphs/graph_structure",
-            #     #     ),
-            #     # ],
-            # ),
         ]
     )
