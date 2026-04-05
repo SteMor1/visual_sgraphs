@@ -6,6 +6,7 @@ from launch_ros.descriptions import ComposableNode
 from launch_ros.actions import ComposableNodeContainer
 from ament_index_python.packages import get_package_share_directory
 from launch.substitutions import LaunchConfiguration, EqualsSubstitution
+import os
 
 def generate_launch_description():
     return LaunchDescription(
@@ -167,6 +168,11 @@ def generate_launch_description():
                 package="rclcpp_components",
                 namespace="",
                 executable="component_container",
+                additional_env={
+                        "LD_PRELOAD": os.path.join(
+                        get_package_share_directory("isaac_ros_gxf"),
+                        "gxf/lib/core/libgxf_core.so")
+                },
                 composable_node_descriptions=[
                     ComposableNode(
                         package="isaac_ros_depth_image_proc",
@@ -178,6 +184,7 @@ def generate_launch_description():
                             ("depth_registered/image_rect", LaunchConfiguration("depth_image_topic")),
                             ("points", "/camera/depth/points"),
                         ],
+
                     ),
                 ],
             ),
