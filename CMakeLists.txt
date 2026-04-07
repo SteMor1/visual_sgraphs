@@ -267,6 +267,9 @@ install(
 install(TARGETS ${PROJECT_NAME}_lib
   DESTINATION lib/${PROJECT_NAME}
 )
-
+install(PROGRAMS
+  launch/jetson/sync_converter.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 # Ament package configuration
 ament_package()

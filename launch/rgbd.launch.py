@@ -41,6 +41,11 @@ def generate_launch_description():
                 "depth_image_topic",
                 default_value="/camera/realsense/aligned_depth_to_color/image_raw",
             ),
+            DeclareLaunchArgument(
+                "use_tum_bag",
+                default_value="false",
+                description="Enable bgr->rgb conversion for TUM bags",
+            ),
             # VS-Graphs Node
             Node(
                 name="vs_graphs",
@@ -168,24 +173,30 @@ def generate_launch_description():
                 package="rclcpp_components",
                 namespace="",
                 executable="component_container",
-                additional_env={
-                        "LD_PRELOAD": os.path.join(
-                        get_package_share_directory("isaac_ros_gxf"),
-                        "gxf/lib/core/libgxf_core.so")
-                },
+                prefix=[get_package_share_directory("vs_graphs"), "/launch/jetson/component_container_isaac.sh"],
                 composable_node_descriptions=[
                     ComposableNode(
                         package="isaac_ros_depth_image_proc",
                         plugin="nvidia::isaac_ros::depth_image_proc::PointCloudXyzrgbNode",
                         name="point_cloud_xyzrgb_node",
                         remappings=[
-                            ("rgb/camera_info", LaunchConfiguration("rgb_camera_info_topic")),
-                            ("rgb/image_rect_color", LaunchConfiguration("rgb_image_topic")),
-                            ("depth_registered/image_rect", LaunchConfiguration("depth_image_topic")),
+                            ("rgb/camera_info", "/camera/rgb/camera_info_sync"),
+                            ("rgb/image_rect_color", "/camera/rgb/image_sync"),
+                            ("depth_registered/image_rect", "/camera/depth/image_sync"),
                             ("points", "/camera/depth/points"),
                         ],
 
                     ),
+                ],
+            ),
+            Node(
+                condition=IfCondition(LaunchConfiguration("use_isaac_ros")),
+                name="sync_converter",
+                package="vs_graphs",
+                executable="sync_converter.py",
+                output="screen",
+                parameters=[
+                    {"convert_bgr": LaunchConfiguration("use_tum_bag")}
                 ],
             ),
             # Semantic Scene Segmenter Node
