@@ -46,6 +46,10 @@ def generate_launch_description():
                 "depth_image_topic",
                 default_value="/camera/realsense/aligned_depth_to_color/image_raw",
             ),
+            DeclareLaunchArgument(
+                "pointcloud_topic",
+                default_value="/camera/depth/points",
+            ),
             # VS-Graphs Node
             Node(
                 name="vs_graphs",
@@ -96,10 +100,8 @@ def generate_launch_description():
                 ],
                 remappings=[
                     ("/camera/rgb/image_raw", LaunchConfiguration("rgb_image_topic")),
-                    (
-                        "/camera/depth_registered/image_raw",
-                        LaunchConfiguration("depth_image_topic"),
-                    ),
+                    ("/camera/depth_registered/image_raw",LaunchConfiguration("depth_image_topic"),),
+                    ("/camera/depth/points", LaunchConfiguration("pointcloud_topic")),
                 ],
             ),
             # Static Transforms
@@ -189,11 +191,20 @@ def generate_launch_description():
                     ),
                 ],
             ),
+            # Sync Converter Node (only for isaac_ros_depth_image_proc, to synchronize topics if needed)
             Node(
                 condition=IfCondition(LaunchConfiguration("use_sync_converter")),
                 name="sync_converter",
                 package="vs_graphs",
                 executable="sync_converter.py",
+                output="screen"
+            ),
+            # PointCloud fix node (only for Jetson with isaac_ros_depth_image_proc, as it outputs unorganized pointclouds)
+            Node(
+                condition=IfCondition(LaunchConfiguration("use_isaac_ros")),
+                name="fix_pointcloud",
+                package="vs_graphs",
+                executable="fix_pointcloud.py",
                 output="screen"
             ),
             # Semantic Scene Segmenter Node
