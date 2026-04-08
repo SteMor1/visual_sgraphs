@@ -7,11 +7,6 @@ from message_filters import ApproximateTimeSynchronizer, Subscriber
 class SyncConverter(Node):
     def __init__(self):
         super().__init__('sync_converter')
-        self.declare_parameter('convert_bgr', True)
-
-        self.convert_bgr = self.get_parameter('convert_bgr').value
-        self.get_logger().info(f'convert_bgr: {self.convert_bgr}')
-
         self.sub_img = Subscriber(self, Image, '/camera/rgb/image_color')
         self.sub_depth = Subscriber(self, Image, '/camera/depth/image')
         self.sub_info = Subscriber(self, CameraInfo, '/camera/rgb/camera_info')
@@ -30,17 +25,8 @@ class SyncConverter(Node):
         out.width = img_msg.width
         out.is_bigendian = img_msg.is_bigendian
         out.step = img_msg.step
-
-        if self.convert_bgr:
-            out.encoding = 'rgb8'
-            data = bytearray(img_msg.data)
-            for i in range(0, len(data), 3):
-                data[i], data[i+2] = data[i+2], data[i]
-            out.data = bytes(data)
-        else:
-            out.encoding = img_msg.encoding
-            out.data = img_msg.data
-
+        out.encoding = img_msg.encoding
+        out.data = img_msg.data
         self.pub_img.publish(out)
         depth_msg.header = img_msg.header
         info_msg.header = img_msg.header

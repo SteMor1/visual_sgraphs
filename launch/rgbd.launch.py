@@ -41,11 +41,6 @@ def generate_launch_description():
                 "depth_image_topic",
                 default_value="/camera/realsense/aligned_depth_to_color/image_raw",
             ),
-            DeclareLaunchArgument(
-                "use_tum_bag",
-                default_value="false",
-                description="Enable bgr->rgb conversion for TUM bags",
-            ),
             # VS-Graphs Node
             Node(
                 name="vs_graphs",
@@ -194,10 +189,7 @@ def generate_launch_description():
                 name="sync_converter",
                 package="vs_graphs",
                 executable="sync_converter.py",
-                output="screen",
-                parameters=[
-                    {"convert_bgr": LaunchConfiguration("use_tum_bag")}
-                ],
+                output="screen"
             ),
             # Semantic Scene Segmenter Node
             Node(
