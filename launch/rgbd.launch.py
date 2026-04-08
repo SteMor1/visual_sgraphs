@@ -233,7 +233,7 @@ def generate_launch_description():
             Node(
                 condition=IfCondition(
                     EqualsSubstitution(
-                        LaunchConfiguration("semantic_scene_segmenter"), "yoso"
+                        LaunchConfiguration("semantic_scene_segmenter"), "yoso_amp"
                     )
                 ),
                 name="segmenter_ros",
