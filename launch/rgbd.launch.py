@@ -20,7 +20,7 @@ def generate_launch_description():
                 "semantic_scene_segmenter",
                 default_value="yoso",
                 description="The method to segment the semantic scene (if off, the baseline)",
-                choices=["yoso", "pfcn", "off"],
+                choices=["yoso","yoso_amp", "pfcn", "off"],
             ),
             DeclareLaunchArgument(
                 "use_isaac_ros",
@@ -220,6 +220,30 @@ def generate_launch_description():
                 output="screen",
                 parameters=[
                     {"visualize": LaunchConfiguration("visualize_segmented_scene")}
+                ],
+                arguments=[
+                    "--ros-args",
+                    "--params-file",
+                    [
+                        get_package_share_directory("segmenter_ros"),
+                        "/config/cfg_yoso.yaml",
+                    ],
+                ],
+            ),
+            Node(
+                condition=IfCondition(
+                    EqualsSubstitution(
+                        LaunchConfiguration("semantic_scene_segmenter"), "yoso"
+                    )
+                ),
+                name="segmenter_ros",
+                package="segmenter_ros",
+                executable="segmenter_yoso.py",
+                output="screen",
+                parameters=[
+                    {"visualize": LaunchConfiguration("visualize_segmented_scene")},
+                    {"enable_amp": True},
+                    
                 ],
                 arguments=[
                     "--ros-args",
