@@ -27,6 +27,11 @@ def generate_launch_description():
                 default_value="false",
                 description="Use isaac_ros_depth_image_proc for GPU acceleration (Jetson only)",
             ),
+            DeclareLaunchArgument(
+                "use_sync_converter",
+                default_value="false",
+                description="Use sync converter for synchronizing topics (required for isaac_ros_depth_image_proc)",
+            ),
             # Topics
             DeclareLaunchArgument("camera_frame", default_value="camera"),
             DeclareLaunchArgument("sensor_config", default_value="SMapper_RealSense"),
@@ -161,7 +166,7 @@ def generate_launch_description():
                     ),
                 ],
             ),
-            # Isaac ROS depth_image_proc (GPU - Jetson only)
+            # Isaac ROS depth_image_proc (GPU - Jetson only)(only rgb images are accepted, topics must be synchronized)
             ComposableNodeContainer(
                 condition=IfCondition(LaunchConfiguration("use_isaac_ros")),
                 name="depth_image_proc_container",
@@ -185,7 +190,7 @@ def generate_launch_description():
                 ],
             ),
             Node(
-                condition=IfCondition(LaunchConfiguration("use_isaac_ros")),
+                condition=IfCondition(LaunchConfiguration("use_sync_converter")),
                 name="sync_converter",
                 package="vs_graphs",
                 executable="sync_converter.py",
