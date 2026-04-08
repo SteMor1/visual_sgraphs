@@ -269,6 +269,7 @@ install(TARGETS ${PROJECT_NAME}_lib
 )
 install(PROGRAMS
   launch/jetson/sync_converter.py
+  launch/jetson/fix_pointcloud.py
   DESTINATION lib/${PROJECT_NAME}
 )
 # Ament package configuration
