@@ -109,6 +109,8 @@
 // Situational Graphs Messages
 #include <situational_graphs_msgs/msg/rooms_data.hpp>
 #include <situational_graphs_msgs/msg/planes_data.hpp>
+#include <situational_graphs_msgs/msg/map_info.hpp>
+#include <situational_graphs_msgs/srv/get_map_info.hpp>
 
 // vS-Graphs Custom Messages
 #include <vs_graphs/msg/vs_graphs_all_walls_data.hpp>
@@ -274,3 +276,21 @@ void setGNNBasedRoomCandidates(const situational_graphs_msgs::msg::RoomsData &ms
  * @param msgGNNRooms The message containing the detected room candidates
  */
 void setGNNBasedRoomCandidates(const vs_graphs::msg::VSGraphsAllDetectdetRooms &msgGNNRooms);
+
+/**
+ * @brief Builds a MapInfo message containing the current map information
+ *
+ * @param msgTime The timestamp for the message header
+ * @return A MapInfo message with the current map information.
+ */
+situational_graphs_msgs::msg::MapInfo buildMapInfoMsg(rclcpp::Time msgTime);
+
+/**
+ * @brief Service callback for getting the current map information
+ *
+ * @param req The service request
+ * @param res The service response containing the map info
+ */
+void getMapInfoService(
+    std::shared_ptr<situational_graphs_msgs::srv::GetMapInfo::Request> req,
+    std::shared_ptr<situational_graphs_msgs::srv::GetMapInfo::Response> res);

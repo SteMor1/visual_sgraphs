@@ -123,6 +123,8 @@ void setupServices(std::shared_ptr<rclcpp::Node> node, const std::string &node_n
         node_name + "/save_map_points", &saveMapPointsAsPCDService);
     node->create_service<vs_graphs::srv::SaveMap>(
         node_name + "/save_traj", &saveTrajectoryService);
+    node->create_service<situational_graphs_msgs::srv::GetMapInfo>(
+        node_name + "/get_map_info", &getMapInfoService);
 }
 
 void setupPublishers(std::shared_ptr<rclcpp::Node> node, std::shared_ptr<image_transport::ImageTransport> image_transport, const std::string &node_name)
@@ -1555,4 +1557,61 @@ void setGNNBasedRoomCandidates(const vs_graphs::msg::VSGraphsAllDetectdetRooms &
 
     // [TODO] Define a 'setGNNRoomCandidates' in System.h
     pSLAM->setGNNRoomCandidates(gnnRoomCandidates);
+}
+situational_graphs_msgs::msg::MapInfo buildMapInfoMsg(rclcpp::Time msgTime){
+    situational_graphs_msgs::msg::MapInfo mapInfoMsg;
+    mapInfoMsg.header.stamp = msgTime;
+    mapInfoMsg.header.frame_id = frameWorld;
+    mapInfoMsg.map_version  = pSLAM->getMapId();
+    auto rooms = pSLAM->GetAllRooms();
+    auto walls = pSLAM->GetAllWalls();
+    // Robot pose
+    Sophus::SE3f Twc = pSLAM->GetCamTwc();
+    mapInfoMsg.robot_pose.position.x = Twc.translation().x();
+    mapInfoMsg.robot_pose.position.y = Twc.translation().y();
+    mapInfoMsg.robot_pose.position.z = Twc.translation().z();
+    mapInfoMsg.robot_pose.orientation.x = Twc.unit_quaternion().x();
+    mapInfoMsg.robot_pose.orientation.y = Twc.unit_quaternion().y();
+    mapInfoMsg.robot_pose.orientation.z = Twc.unit_quaternion().z();
+    mapInfoMsg.robot_pose.orientation.w = Twc.unit_quaternion().w();
+    // Hashmap doorId -> [roomId1, roomId2]
+    std::unordered_map<int, std::vector<int>> doorToRooms;
+    for (auto room : rooms) {
+        for (auto door : room->getDoors()) {
+            doorToRooms[door->getId()].push_back(room->getId());
+        }
+    }
+    for (auto room : rooms) {
+        // Creating RoomInfo message for each room
+        situational_graphs_msgs::msg::RoomInfo roomInfo;
+        roomInfo.id = room->getId();
+        roomInfo.name = room->getName();
+        roomInfo.centroid.x = room->getCentroid().x();
+        roomInfo.centroid.y = room->getCentroid().y();
+        roomInfo.centroid.z = room->getCentroid().z();
+        
+        for (auto door : room->getDoors()) {
+            //getting the neighboring room ids for each door and adding to the roomInfo message
+            roomInfo.neighboringRoomIds.push_back(doorToRooms[door->getId()]);
+        }
+        //define the room type based on the room variant
+        auto roomVariant = room->getRoomVariant();
+        switch (roomVariant) {
+            case ORB_SLAM3::Room::roomVariant::UNDEFINED:
+                roomInfo.type = "UNDEFINED";
+                break;
+            case ORB_SLAM3::Room::roomVariant::CORRIDOR:
+                roomInfo.type = "CORRIDOR";
+                break;
+            case ORB_SLAM3::Room::roomVariant::ROOM:
+                roomInfo.type = "ROOM";
+                break;
+            default:
+                roomInfo.type = "UNDEFINED";
+        }
+        roomInfo.wallIds = room->getWalls().getIds();
+        mapInfoMsg.rooms.push_back(roomInfo);
+    }
+
+    return mapInfoMsg;
 }
