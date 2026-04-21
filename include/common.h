@@ -157,6 +157,11 @@ extern rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pubCam
 extern rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pubKeyFrameMarker;
 extern rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pubStructuralElements;
 
+extern rclcpp::Service<vs_graphs::srv::SaveMap>::SharedPtr srv_save_map;
+extern rclcpp::Service<vs_graphs::srv::SaveMap>::SharedPtr srv_save_map_points;
+extern rclcpp::Service<vs_graphs::srv::SaveMap>::SharedPtr srv_save_traj;
+extern rclcpp::Service<situational_graphs_msgs::srv::GetMapInfo>::SharedPtr srv_get_map_info;
+
 class MapPointStruct
 {
     int clusterId;

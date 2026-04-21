@@ -63,6 +63,11 @@ rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pubFiducialMa
 rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pubStructuralElements;
 rclcpp::Publisher<situational_graphs_msgs::msg::PlanesData>::SharedPtr pubAllWalls_legacy;
 
+rclcpp::Service<vs_graphs::srv::SaveMap>::SharedPtr srv_save_map;
+rclcpp::Service<vs_graphs::srv::SaveMap>::SharedPtr srv_save_map_points;
+rclcpp::Service<vs_graphs::srv::SaveMap>::SharedPtr srv_save_traj;
+rclcpp::Service<situational_graphs_msgs::srv::GetMapInfo>::SharedPtr srv_get_map_info;
+
 void saveMapService(
     std::shared_ptr<vs_graphs::srv::SaveMap::Request> req,
     std::shared_ptr<vs_graphs::srv::SaveMap::Response> res)
@@ -115,18 +120,26 @@ void saveTrajectoryService(
         RCLCPP_ERROR(rclcpp::get_logger("visual_sgraphs"), "Estimated trajectory could not be saved.");
 }
 
-void setupServices(std::shared_ptr<rclcpp::Node> node, const std::string &node_name)
+void getMapInfoService(
+    std::shared_ptr<situational_graphs_msgs::srv::GetMapInfo::Request> req,
+    std::shared_ptr<situational_graphs_msgs::srv::GetMapInfo::Response> res)
 {
-    node->create_service<vs_graphs::srv::SaveMap>(
-        node_name + "/save_map", &saveMapService);
-    node->create_service<vs_graphs::srv::SaveMap>(
-        node_name + "/save_map_points", &saveMapPointsAsPCDService);
-    node->create_service<vs_graphs::srv::SaveMap>(
-        node_name + "/save_traj", &saveTrajectoryService);
-    node->create_service<situational_graphs_msgs::srv::GetMapInfo>(
-        node_name + "/get_map_info", &getMapInfoService);
+    res->map_info = buildMapInfoMsg(rclcpp::Clock().now());
+    res->success = true;
+    res->message = "Map info retrieved successfully";
 }
 
+void setupServices(std::shared_ptr<rclcpp::Node> node, const std::string &node_name)
+{
+    srv_save_map = node->create_service<vs_graphs::srv::SaveMap>(
+        node_name + "/save_map", &saveMapService);
+    srv_save_map_points = node->create_service<vs_graphs::srv::SaveMap>(
+        node_name + "/save_map_points", &saveMapPointsAsPCDService);
+    srv_save_traj = node->create_service<vs_graphs::srv::SaveMap>(
+        node_name + "/save_traj", &saveTrajectoryService);
+    srv_get_map_info = node->create_service<situational_graphs_msgs::srv::GetMapInfo>(
+        node_name + "/get_map_info", &getMapInfoService);
+}
 void setupPublishers(std::shared_ptr<rclcpp::Node> node, std::shared_ptr<image_transport::ImageTransport> image_transport, const std::string &node_name)
 {
     // Basic
@@ -1560,11 +1573,15 @@ void setGNNBasedRoomCandidates(const vs_graphs::msg::VSGraphsAllDetectdetRooms &
 }
 situational_graphs_msgs::msg::MapInfo buildMapInfoMsg(rclcpp::Time msgTime){
     situational_graphs_msgs::msg::MapInfo mapInfoMsg;
-    mapInfoMsg.header.stamp = msgTime;
     mapInfoMsg.header.frame_id = frameWorld;
-    mapInfoMsg.map_version  = pSLAM->getMapId();
-    auto rooms = pSLAM->GetAllRooms();
-    auto walls = pSLAM->GetAllWalls();
+    mapInfoMsg.header.stamp = msgTime;
+    
+    ORB_SLAM3::Map* pCurrentMap = pSLAM->GetCurrentMap();
+    mapInfoMsg.map_version = pCurrentMap->GetId();
+    
+    auto floors = pCurrentMap->GetAllFloors();
+    auto rooms = pCurrentMap->GetAllRooms();
+    auto planes = pCurrentMap->GetAllPlanes();
     // Robot pose
     Sophus::SE3f Twc = pSLAM->GetCamTwc();
     mapInfoMsg.robot_pose.position.x = Twc.translation().x();
@@ -1574,6 +1591,23 @@ situational_graphs_msgs::msg::MapInfo buildMapInfoMsg(rclcpp::Time msgTime){
     mapInfoMsg.robot_pose.orientation.y = Twc.unit_quaternion().y();
     mapInfoMsg.robot_pose.orientation.z = Twc.unit_quaternion().z();
     mapInfoMsg.robot_pose.orientation.w = Twc.unit_quaternion().w();
+
+    for (auto floor : floors) {
+        // Creating FloorInfo message for each floor
+        situational_graphs_msgs::msg::FloorInfo floorInfo;
+        floorInfo.id = floor->getId();
+        floorInfo.name = floor->getName();
+        floorInfo.floor_center.position.x = floor->getCentroid().x();
+        floorInfo.floor_center.position.y = floor->getCentroid().y();
+        floorInfo.floor_center.position.z = floor->getCentroid().z();
+        floorInfo.floor_center.orientation.w = 1.0;
+        for (auto room : floor->getRooms()) {
+            floorInfo.room_ids.push_back(room->getId());
+        }
+        mapInfoMsg.floors.push_back(floorInfo);
+    }
+
+
     // Hashmap doorId -> [roomId1, roomId2]
     std::unordered_map<int, std::vector<int>> doorToRooms;
     for (auto room : rooms) {
@@ -1586,13 +1620,17 @@ situational_graphs_msgs::msg::MapInfo buildMapInfoMsg(rclcpp::Time msgTime){
         situational_graphs_msgs::msg::RoomInfo roomInfo;
         roomInfo.id = room->getId();
         roomInfo.name = room->getName();
-        roomInfo.centroid.x = room->getCentroid().x();
-        roomInfo.centroid.y = room->getCentroid().y();
-        roomInfo.centroid.z = room->getCentroid().z();
+        roomInfo.room_center.position.x = room->getCentroid().x();
+        roomInfo.room_center.position.y = room->getCentroid().y();
+        roomInfo.room_center.position.z = room->getCentroid().z();
+        roomInfo.room_center.orientation.w = 1.0;
         
         for (auto door : room->getDoors()) {
-            //getting the neighboring room ids for each door and adding to the roomInfo message
-            roomInfo.neighboringRoomIds.push_back(doorToRooms[door->getId()]);
+            for (int neighbourId : doorToRooms[door->getId()]) {
+                if (neighbourId != room->getId()) {
+                    roomInfo.neighbour_ids.push_back(neighbourId);
+                }
+            }
         }
         //define the room type based on the room variant
         auto roomVariant = room->getRoomVariant();
@@ -1609,8 +1647,26 @@ situational_graphs_msgs::msg::MapInfo buildMapInfoMsg(rclcpp::Time msgTime){
             default:
                 roomInfo.type = "UNDEFINED";
         }
-        roomInfo.wallIds = room->getWalls().getIds();
+        for (auto wall : room->getWalls()) {
+            if (!wall->isBad())
+                roomInfo.wall_ids.push_back(wall->getId());
+        };
         mapInfoMsg.rooms.push_back(roomInfo);
+    }
+    
+    // Popola walls (solo WALL)
+    for (auto plane : planes) {
+        if (plane->isBad()) continue;
+        if (plane->getPlaneType() != ORB_SLAM3::Plane::WALL) continue; //Only include walls in the MapInfo message
+        
+        situational_graphs_msgs::msg::WallData wallData;
+        wallData.id = plane->getId();
+        wallData.wall_center.position.x = plane->getCentroid().x();
+        wallData.wall_center.position.y = plane->getCentroid().y();
+        wallData.wall_center.position.z = plane->getCentroid().z();
+        wallData.wall_center.orientation.w = 1.0;
+        
+        mapInfoMsg.walls.push_back(wallData);
     }
 
     return mapInfoMsg;
