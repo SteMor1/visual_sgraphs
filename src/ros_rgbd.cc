@@ -149,6 +149,7 @@ int main(int argc, char **argv)
 
     static std::shared_ptr<image_transport::ImageTransport> image_transport = std::make_shared<image_transport::ImageTransport>(node);
     setupPublishers(node, image_transport, nodeName);
+    setupServices(node, nodeName);
 
     rclcpp::spin(node);
 
