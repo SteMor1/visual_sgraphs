@@ -1575,7 +1575,11 @@ situational_graphs_msgs::msg::MapInfo buildMapInfoMsg(rclcpp::Time msgTime){
     situational_graphs_msgs::msg::MapInfo mapInfoMsg;
     mapInfoMsg.header.frame_id = frameWorld;
     mapInfoMsg.header.stamp = msgTime;
-    
+
+    auto tfStampedSE = tfBuffer_->lookupTransform(frameWorld, frameSE, msgTime, rclcpp::Duration::from_seconds(0.1));
+    auto tfStampedBC = tfBuffer_->lookupTransform(frameWorld, frameBC, msgTime, rclcpp::Duration::from_seconds(0.1));
+
+
     ORB_SLAM3::Map* pCurrentMap = pSLAM->GetCurrentMap();
     mapInfoMsg.map_version = pCurrentMap->GetId();
     
@@ -1611,18 +1615,35 @@ situational_graphs_msgs::msg::MapInfo buildMapInfoMsg(rclcpp::Time msgTime){
     // Hashmap doorId -> [roomId1, roomId2]
     std::unordered_map<int, std::vector<int>> doorToRooms;
     for (auto room : rooms) {
+        if (room->isBad()) continue;
         for (auto door : room->getDoors()) {
             doorToRooms[door->getId()].push_back(room->getId());
         }
     }
     for (auto room : rooms) {
         // Creating RoomInfo message for each room
+        if (room->isBad()) continue;
         situational_graphs_msgs::msg::RoomInfo roomInfo;
         roomInfo.id = room->getId();
         roomInfo.name = room->getName();
-        roomInfo.room_center.position.x = room->getCentroid().x();
-        roomInfo.room_center.position.y = room->getCentroid().y();
-        roomInfo.room_center.position.z = room->getCentroid().z();
+        //Converting room centroid position from SE frame to world frame
+        geometry_msgs::msg::PointStamped roomPoint, roomPointTr;
+        roomPoint.header.frame_id = frameSE;
+        roomPoint.point.x = room->getCentroid().x();
+        roomPoint.point.y = room->getCentroid().y();
+        roomPoint.point.z = room->getCentroid().z();
+        roomInfo.header.frame_id = frameWorld;
+        try{
+            tf2::doTransform(roomPoint, roomPointTr, tfStampedSE);
+        }catch (tf2::TransformException &ex){
+            RCLCPP_WARN(rclcpp::get_logger("visual_sgraphs"), "Room centroid transform failed during creation of MapInfo msg: %s", ex.what());
+            roomPointTr = roomPoint;
+            roomInfo.header.frame_id = frameSE;
+        }
+        
+        roomInfo.room_center.position.x = roomPointTr.point.x;
+        roomInfo.room_center.position.y = roomPointTr.point.y;
+        roomInfo.room_center.position.z = roomPointTr.point.z;
         roomInfo.room_center.orientation.w = 1.0;
         
         for (auto door : room->getDoors()) {
@@ -1658,12 +1679,21 @@ situational_graphs_msgs::msg::MapInfo buildMapInfoMsg(rclcpp::Time msgTime){
     for (auto plane : planes) {
         if (plane->isBad()) continue;
         if (plane->getPlaneType() != ORB_SLAM3::Plane::WALL) continue; //Only include walls in the MapInfo message
-        
+        geometry_msgs::msg::PointStamped wallPoint, wallPointTr;
         situational_graphs_msgs::msg::WallData wallData;
+        wallPointTr.point = plane->getCentroid();
         wallData.id = plane->getId();
-        wallData.wall_center.position.x = plane->getCentroid().x();
-        wallData.wall_center.position.y = plane->getCentroid().y();
-        wallData.wall_center.position.z = plane->getCentroid().z();
+        wallData.header.frame_id = frameWorld
+        try{
+            tf2::doTransform(wallPoint, wallPointTr, tfStamped);
+        }
+        catch (tf2::TransformException &ex)
+        {
+            RCLCPP_WARN(rclcpp::get_logger("visual_sgraphs"), "Wall centroid transform failed during creation of MapInfo msg: %s", ex.what());
+            wallPointTr = wallPoint;
+            wallData.header.frame_id = frameBC
+        }          
+        wallData.wall_center.position.x = wallPointTr
         wallData.wall_center.orientation.w = 1.0;
         
         mapInfoMsg.walls.push_back(wallData);
