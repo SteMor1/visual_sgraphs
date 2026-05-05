@@ -62,6 +62,7 @@ rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pubKeyFrameMa
 rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pubFiducialMarker;
 rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pubStructuralElements;
 rclcpp::Publisher<situational_graphs_msgs::msg::PlanesData>::SharedPtr pubAllWalls_legacy;
+rclcpp::Publisher<situational_graphs_reasoning_msgs::msg::Graph>::SharedPtr pubGraphStructure;
 
 rclcpp::Service<vs_graphs::srv::SaveMap>::SharedPtr srv_save_map;
 rclcpp::Service<vs_graphs::srv::SaveMap>::SharedPtr srv_save_map_points;
@@ -169,7 +170,8 @@ void setupPublishers(std::shared_ptr<rclcpp::Node> node, std::shared_ptr<image_t
 
     // Structural Elements
     pubStructuralElements = node->create_publisher<visualization_msgs::msg::MarkerArray>(node_name + "/structural_elements", 1);
-
+    // Graph for S-Graph suite compliance
+    pubGraphStructure = node->create_publisher<situational_graphs_reasoning_msgs::msg::Graph>(node_name+"/graph_structure", 32);
     // Get body odometry if IMU data is also available
     if (sensorType == ORB_SLAM3::System::IMU_MONOCULAR || sensorType == ORB_SLAM3::System::IMU_STEREO ||
         sensorType == ORB_SLAM3::System::IMU_RGBD)
@@ -209,7 +211,8 @@ void publishTopics(rclcpp::Time msgTime, Eigen::Vector3f Wbb, const sensor_msgs:
 
     // Publish all mapped walls for GNN-based room detection
     publishAllMappedWalls(pSLAM->GetAllPlanes(), msgTime);
-
+    // Publish Graph Struct
+    publishGraph(msgTime);
     // Publish pointclouds
     if (pubPointClouds)
     {
@@ -1681,23 +1684,42 @@ situational_graphs_msgs::msg::MapInfo buildMapInfoMsg(rclcpp::Time msgTime){
         if (plane->getPlaneType() != ORB_SLAM3::Plane::WALL) continue; //Only include walls in the MapInfo message
         geometry_msgs::msg::PointStamped wallPoint, wallPointTr;
         situational_graphs_msgs::msg::WallData wallData;
-        wallPointTr.point = plane->getCentroid();
+        wallPoint.point.x = plane->getCentroid().x();
+        wallPoint.point.y = plane->getCentroid().y();
+        wallPoint.point.z = plane->getCentroid().z();
         wallData.id = plane->getId();
-        wallData.header.frame_id = frameWorld
+        wallData.header.frame_id = frameWorld;
         try{
-            tf2::doTransform(wallPoint, wallPointTr, tfStamped);
+            tf2::doTransform(wallPoint, wallPointTr, tfStampedBC);
         }
         catch (tf2::TransformException &ex)
         {
             RCLCPP_WARN(rclcpp::get_logger("visual_sgraphs"), "Wall centroid transform failed during creation of MapInfo msg: %s", ex.what());
             wallPointTr = wallPoint;
-            wallData.header.frame_id = frameBC
+            wallData.header.frame_id = frameBC;
         }          
-        wallData.wall_center.position.x = wallPointTr
+        wallData.wall_center.position.x = wallPointTr.point.x;
+        wallData.wall_center.position.y = wallPointTr.point.y;
+        wallData.wall_center.position.z = wallPointTr.point.z;
         wallData.wall_center.orientation.w = 1.0;
         
         mapInfoMsg.walls.push_back(wallData);
     }
 
     return mapInfoMsg;
+}
+
+void publishGraph(rclcpp::Time msgTime) {
+
+   
+
+  ORB_SLAM3::Map* pCurrentMap = pSLAM->GetCurrentMap();
+  auto tfStampedSE = tfBuffer_->lookupTransform(frameWorld, frameSE, msgTime, rclcpp::Duration::from_seconds(0.1));
+  auto tfStampedBC = tfBuffer_->lookupTransform(frameWorld, frameBC, msgTime, rclcpp::Duration::from_seconds(0.1));
+  auto graph_structure = GraphPublisher::publish_graph(pCurrentMap,"Online",tfStampedSE,tfStampedBC );
+  
+  graph_structure.name = "Online";
+
+  pubGraphStructure->publish(graph_structure);
+
 }

@@ -92,7 +92,8 @@
 #include <pcl_ros/transforms.hpp>
 #include <tf2/transform_datatypes.h>
 #include <tf2_ros/static_transform_broadcaster.h>
-
+// Graph Publisher
+#include <include/visualization/graph_publisher.hpp>
 // ORB-SLAM3-specific libraries
 #include "System.h"
 #include "ImuTypes.h"
@@ -111,6 +112,10 @@
 #include <situational_graphs_msgs/msg/planes_data.hpp>
 #include <situational_graphs_msgs/msg/map_info.hpp>
 #include <situational_graphs_msgs/srv/get_map_info.hpp>
+// Situational Graphs Reasoning Messages
+#include <situational_graphs_reasoning_msgs/msg/graph.hpp>
+
+
 
 // vS-Graphs Custom Messages
 #include <vs_graphs/msg/vs_graphs_all_walls_data.hpp>
@@ -299,3 +304,9 @@ situational_graphs_msgs::msg::MapInfo buildMapInfoMsg(rclcpp::Time msgTime);
 void getMapInfoService(
     std::shared_ptr<situational_graphs_msgs::srv::GetMapInfo::Request> req,
     std::shared_ptr<situational_graphs_msgs::srv::GetMapInfo::Response> res);
+/**
+ * @brief Function to publish the graph struct
+ *
+ * @param msgTime Current Timestamp
+ */
+void publishGraph(rclcpp::Time msgTime);

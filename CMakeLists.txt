@@ -51,6 +51,7 @@ find_package(message_filters REQUIRED)
 find_package(rviz_visual_tools REQUIRED)
 find_package(rosidl_default_runtime REQUIRED)
 find_package(situational_graphs_msgs REQUIRED)
+find_package(situational_graphs_reasoning_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 # find_package(aruco_ros REQUIRED)
 # find_package(aruco_msgs REQUIRED)
@@ -210,11 +211,13 @@ ament_target_dependencies(${PROJECT_NAME}_lib
   image_transport
   rviz_visual_tools
   situational_graphs_msgs
+
 )
 
 # Common source files
 set(COMMON_SOURCES
   src/common.cc
+  src/visualization/graph_publisher.cc
 )
 
 # Common dependencies
@@ -230,6 +233,7 @@ set(COMMON_DEPENDENCIES
   segmenter_ros
   message_filters
   situational_graphs_msgs
+  situational_graphs_reasoning_msgs
 )
 
 # ROS2 nodes
